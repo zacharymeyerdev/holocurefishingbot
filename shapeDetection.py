@@ -1,4 +1,5 @@
 import cv2
+import time
 import numpy as np
 import urllib.request
 import pyautogui
@@ -16,14 +17,19 @@ image_urls = {
 # Load reference images and calculate Hu Moments
 reference_hu_moments = {}
 for shape, url in image_urls.items():
-    resp = urllib.request.urlopen(url)
-    image = np.asarray(bytearray(resp.read()), dtype="uint8")
-    image = cv2.imdecode(image, cv2.IMREAD_GRAYSCALE)
-    
-    # Calculate Hu Moments
-    moments = cv2.moments(image)
-    hu_moments = cv2.HuMoments(moments)
-    reference_hu_moments[shape] = hu_moments
+    try:
+        resp = urllib.request.urlopen(url)
+        image = np.asarray(bytearray(resp.read()), dtype="uint8")
+        image = cv2.imdecode(image, cv2.IMREAD_GRAYSCALE)
+        
+        # Calculate Hu Moments
+        moments = cv2.moments(image)
+        hu_moments = cv2.HuMoments(moments)
+        reference_hu_moments[shape] = hu_moments
+    except urllib.error.HTTPError as e:
+        print(f"HTTPError: {e.code} for url: {url}")
+    except urllib.error.URLError as e:
+        print(f"URLError: {e.reason} for url: {url}")
 
 # Define the region of interest (x, y, width, height)
 roi = (1131, 687, 96, 120)
