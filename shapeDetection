@@ -1,0 +1,42 @@
+import cv2
+import numpy as np
+import pyautogui
+import mss
+
+# Define the region of interest (x, y, width, height)
+roi = (1131, 687, 96, 120)
+
+# Define shape descriptors
+shapes = {
+    'up_arrow': 'w',
+    'down_arrow': 's',
+    'left_arrow': 'a',
+    'right_arrow': 'd',
+    'circle': 'space',
+}
+
+def detect_shape(contour):
+    # Analyze the contour and return the detected shape as a string
+    # This is a placeholder; you will need to implement shape detection logic
+    return 'up_arrow'
+
+while True:
+    with mss.mss() as sct:
+        screen = np.array(sct.shot())
+        
+    # Extract the region of interest
+    roi_image = screen[roi[1]:roi[1]+roi[3], roi[0]:roi[0]+roi[2]]
+    
+    # Convert to grayscale and apply thresholding
+    gray = cv2.cvtColor(roi_image, cv2.COLOR_BGR2GRAY)
+    _, thresh = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY)
+    
+    # Find contours
+    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    for contour in contours:
+        shape = detect_shape(contour)
+        key = shapes.get(shape)
+        if key:
+            pyautogui.press(key)
+            break  # Break if a shape is found to avoid pressing multiple keys
