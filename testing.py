@@ -1,0 +1,1 @@
+pyautogui.press('a')  # This should press the 'a' key

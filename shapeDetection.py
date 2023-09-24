@@ -7,11 +7,11 @@ import mss
 
 # Define the images (url)
 image_urls = {
-    'circle': "https://github.com/zacharymeyerdev/holocurefishingbot/blob/main/images/circle.png",
-    'up_arrow': "https://github.com/zacharymeyerdev/holocurefishingbot/blob/main/images/uparrow.png",
-    'down_arrow': "https://github.com/zacharymeyerdev/holocurefishingbot/blob/main/images/downarrow.png",
-    'left_arrow': "https://github.com/zacharymeyerdev/holocurefishingbot/blob/main/images/leftarrow.png",
-    'right_arrow': "https://github.com/zacharymeyerdev/holocurefishingbot/blob/main/images/rightarrow.png"
+    'circle': "https://raw.githubusercontent.com/zacharymeyerdev/holocurefishingbot/main/images/circle.png",
+    'up_arrow': "https://raw.githubusercontent.com/zacharymeyerdev/holocurefishingbot/main/images/uparrow.png",
+    'down_arrow': "https://raw.githubusercontent.com/zacharymeyerdev/holocurefishingbot/main/images/downarrow.png",
+    'left_arrow': "https://raw.githubusercontent.com/zacharymeyerdev/holocurefishingbot/main/images/leftarrow.png",
+    'right_arrow': "https://raw.githubusercontent.com/zacharymeyerdev/holocurefishingbot/main/images/rightarrow.png"
 }
 
 # Load reference images and calculate Hu Moments
@@ -48,7 +48,9 @@ def compare_shapes(hu_moments1, hu_moments2):
 
 while True:
     with mss.mss() as sct:
-        screen = np.array(sct.shot())
+        # Capture the first monitor
+        filename = sct.shot(mon=1)
+        screen = cv2.imread(filename)
         
     # Extract the region of interest
     roi_image = screen[roi[1]:roi[1]+roi[3], roi[0]:roi[0]+roi[2]]
