@@ -7,11 +7,11 @@ import mss
 
 # Define the images (url)
 image_urls = {
-    'circle': "https://raw.githubusercontent.com/holocurefishingbot/holocurefishingbot/main/images/circle.png",
-    'up_arrow': "https://raw.githubusercontent.com/holocurefishingbot/holocurefishingbot/main/images/uparrow.png",
-    'down_arrow': "https://raw.githubusercontent.com/holocurefishingbot/holocurefishingbot/main/images/downarrow.png",
-    'left_arrow': "https://raw.githubusercontent.com/holocurefishingbot/holocurefishingbot/main/images/leftarrow.png",
-    'right_arrow': "https://raw.githubusercontent.com/holocurefishingbot/holocurefishingbot/main/images/rightarrow.png"
+    'circle': "https://github.com/zacharymeyerdev/holocurefishingbot/blob/main/images/circle.png",
+    'up_arrow': "https://github.com/zacharymeyerdev/holocurefishingbot/blob/main/images/uparrow.png",
+    'down_arrow': "https://github.com/zacharymeyerdev/holocurefishingbot/blob/main/images/downarrow.png",
+    'left_arrow': "https://github.com/zacharymeyerdev/holocurefishingbot/blob/main/images/leftarrow.png",
+    'right_arrow': "https://github.com/zacharymeyerdev/holocurefishingbot/blob/main/images/rightarrow.png"
 }
 
 # Load reference images and calculate Hu Moments
