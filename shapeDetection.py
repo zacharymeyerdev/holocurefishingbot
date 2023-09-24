@@ -48,9 +48,14 @@ def compare_shapes(hu_moments1, hu_moments2):
 
 while True:
     with mss.mss() as sct:
-        # Capture the first monitor
-        filename = sct.shot(mon=1)
-        screen = cv2.imread(filename)
+        for monitor_number, monitor in enumerate(sct.monitors[1:], start=1):
+            print(f"Monitor {monitor_number}: {monitor}")
+        monitor = sct.monitors[1]  # or 2, 3, etc. based on which monitor you want to capture
+        while True:
+            # Capture the screenshot of the specified monitor
+            screen = np.array(sct.shot(output='sct.png', screen=monitor))
+            # ... rest of your code
+
         
     # Extract the region of interest
     roi_image = screen[roi[1]:roi[1]+roi[3], roi[0]:roi[0]+roi[2]]
