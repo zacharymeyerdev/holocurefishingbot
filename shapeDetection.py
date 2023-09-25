@@ -5,6 +5,10 @@ import urllib.request
 import pyautogui
 import mss
 import matplotlib.pyplot as plt
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 # Define the images (url)
 image_urls = {
@@ -76,6 +80,17 @@ while True:
     contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     print(f"Found {len(contours)} contours")
 
+    contour_image = roi_image.copy()
+    cv2.drawContours(contour_image, contours, -1, (0, 255, 0), 2)
+    cv2.imshow('Contours', contour_image)
+    cv2.waitKey(1)
+
+    cv2.imwrite('roi_image.png', roi_image)
+    cv2.imwrite('mask.png', mask)
+    cv2.imwrite('thresh.png', thresh)
+
+    logger.debug(f"ROI Image - shape: {roi_image.shape}, min: {roi_image.min()}, max: {roi_image.max()}, mean: {roi_image.mean()}, std: {roi_image.std()}")
+
     for contour in contours:
         mask = np.zeros_like(gray)
         cv2.drawContours(mask, [contour], -1, 255, thickness=cv2.FILLED)
@@ -89,10 +104,16 @@ while True:
         for shape, hu_moments in reference_hu_moments.items():
             diff = np.abs(detected_hu_moments - hu_moments)  # Debug: Compare Hu Moments Manually
             print(f"Difference with {shape}: {diff}")
+
+            diff_image = cv2.absdiff(gray, ref_image)
+            cv2.imshow(f'Diff with {shape}', diff_image)
+            cv2.waitKey(1)
             
             if compare_shapes(detected_hu_moments, hu_moments):
                 print(f"Detected shape: {shape}")
                 key = shapes.get(shape)
+
+                
                 if key:
                     print(f"Pressing key: {key}")
                     pyautogui.press(key)
