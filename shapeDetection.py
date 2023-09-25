@@ -28,7 +28,7 @@ for shape, url in image_urls.items():
         print(f"Error loading image for {shape} from {url}: {e}")
 
 # Define the region of interest (x, y, width, height)
-roi = (276, 242, 133, 38)
+roi = (1129, 703, 104, 108)
 
 # Define shape descriptors
 shapes = {
