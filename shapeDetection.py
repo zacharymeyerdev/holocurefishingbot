@@ -57,7 +57,7 @@ def main():
     shape_detector = ShapeDetector(templates)
     
     # Define the region of interest (x, y, width, height)
-    roi = (1029, 703, 204, 108)
+    roi = (1120, 703, 130, 120)
     shapes = {
         'up_arrow': 'w',
         'down_arrow': 's',
@@ -66,7 +66,7 @@ def main():
         'circle': 'space',
     }
 
-    frame_rate = 30  # e.g., 30 frames per second
+    frame_rate = 60  # e.g., 30 frames per second
     frame_time = 1.0 / frame_rate  # time for one frame in seconds
 
     shape_detector = ShapeDetector(templates)
@@ -88,7 +88,6 @@ def main():
                 # Press the corresponding key if a shape is detected
                 if shape:
                     key = shapes.get(shape)
-                    print("Shape detected: {shape}")
                     if key:
                         pyautogui.press(key)
                         print("Key pressed:", key)
