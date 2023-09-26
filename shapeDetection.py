@@ -3,77 +3,61 @@ import numpy as np
 import urllib.request
 import pyautogui
 import mss
-import matplotlib.pyplot as plt
 import logging
-import cProfile
 import configparser
-
+import time
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-
 class ShapeDetector:
-    def __init__(self, reference_hu_moments):
-        self.reference_hu_moments = reference_hu_moments
+    def __init__(self, templates):
+        self.templates = templates
 
     def detect_shape(self, image):
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         _, thresh = cv2.threshold(gray, 100, 255, cv2.THRESH_BINARY)
-
+        thresh = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel=(3,3))  # Opening Morphology Operation
+        
         contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-        for contour in contours:
-            mask = np.zeros_like(gray)
-            cv2.drawContours(mask, [contour], -1, 255, thickness=cv2.FILLED)
-
-            moments = cv2.moments(mask)
-            detected_hu_moments = cv2.HuMoments(moments)
-
-            for shape, hu_moments in self.reference_hu_moments.items():
-                if compare_shapes(detected_hu_moments, hu_moments):
-                    return shape
+        
+        for shape, template in self.templates.items():
+            res = cv2.matchTemplate(thresh, template, cv2.TM_CCOEFF_NORMED)
+            min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
+            if max_val > 0.8:  # Threshold, adjust accordingly
+                return shape
 
         return None
 
-
-def compare_shapes(hu_moments1, hu_moments2):
-    return np.allclose(hu_moments1, hu_moments2, rtol=1e-3, atol=1e-6)  # Adjusted tolerance values
-
-
-def load_reference_images(image_urls):
-    reference_hu_moments = {}
+def load_templates(image_urls):
+    templates = {}
     for shape, url in image_urls.items():
         try:
             resp = urllib.request.urlopen(url)
             image = np.asarray(bytearray(resp.read()), dtype="uint8")
             image = cv2.imdecode(image, cv2.IMREAD_GRAYSCALE)
-
-            moments = cv2.moments(image)
-            hu_moments = cv2.HuMoments(moments)
-
-            reference_hu_moments[shape] = hu_moments
+            templates[shape] = image
 
         except Exception as e:
             logger.error(f"Error loading image for {shape} from {url}: {e}")
 
-    return reference_hu_moments
-
+    return templates
 
 def main():
     # Load reference images and calculate Hu Moments
-    reference_hu_moments = load_reference_images({
+    templates = load_templates({
         'circle': "https://raw.githubusercontent.com/zacharymeyerdev/holocurefishingbot/main/images/circle.png",
         'up_arrow': "https://raw.githubusercontent.com/zacharymeyerdev/holocurefishingbot/main/images/uparrow.png",
         'down_arrow': "https://raw.githubusercontent.com/zacharymeyerdev/holocurefishingbot/main/images/downarrow.png",
         'left_arrow': "https://raw.githubusercontent.com/zacharymeyerdev/holocurefishingbot/main/images/leftarrow.png",
         'right_arrow': "https://raw.githubusercontent.com/zacharymeyerdev/holocurefishingbot/main/images/rightarrow.png"
     })
+    print("Templates loaded:", templates)
 
+    shape_detector = ShapeDetector(templates)
+    
     # Define the region of interest (x, y, width, height)
-    roi = (1129, 703, 104, 108)
-
-    # Define shape descriptors
+    roi = (1029, 703, 204, 108)
     shapes = {
         'up_arrow': 'w',
         'down_arrow': 's',
@@ -82,81 +66,47 @@ def main():
         'circle': 'space',
     }
 
-class ShapeDetector:
-    def __init__(self, reference_hu_moments):
-        self.reference_hu_moments = reference_hu_moments
+    frame_rate = 30  # e.g., 30 frames per second
+    frame_time = 1.0 / frame_rate  # time for one frame in seconds
 
-    def detect_shape(self, image):
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        _, thresh = cv2.threshold(gray, 100, 255, cv2.THRESH_BINARY)
+    shape_detector = ShapeDetector(templates)
 
-        contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    try:
+        with mss.mss() as sct:
+            while True:
+                start_time = time.time()
 
-        for contour in contours:
-            mask = np.zeros_like(gray)
-            cv2.drawContours(mask, [contour], -1, 255, thickness=cv2.FILLED)
-
-            moments = cv2.moments(mask)
-            detected_hu_moments = cv2.HuMoments(moments)
-
-            for shape, hu_moments in self.reference_hu_moments.items():
-                if compare_shapes(detected_hu_moments, hu_moments):
-                    return shape
-
-        return None
-
-
-def main():
-    # Load reference images and calculate Hu Moments
-    reference_hu_moments = load_reference_images({
-        'circle': "https://raw.githubusercontent.com/zacharymeyerdev/holocurefishingbot/main/images/circle.png",
-        'up_arrow': "https://raw.githubusercontent.com/zacharymeyerdev/holocurefishingbot/main/images/uparrow.png",
-        'down_arrow': "https://raw.githubusercontent.com/zacharymeyerdev/holocurefishingbot/main/images/downarrow.png",
-        'left_arrow': "https://raw.githubusercontent.com/zacharymeyerdev/holocurefishingbot/main/images/leftarrow.png",
-        'right_arrow': "https://raw.githubusercontent.com/zacharymeyerdev/holocurefishingbot/main/images/rightarrow.png"
-    })
-
-    # Define the region of interest (x, y, width, height)
-    roi = (1129, 703, 104, 108)
-
-    # Define shape descriptors
-    shapes = {
-        'up_arrow': 'w',
-        'down_arrow': 's',
-        'left_arrow': 'a',
-        'right_arrow': 'd',
-        'circle': 'space',
-    }
-
-    # Create a shape detector
-    shape_detector = ShapeDetector(reference_hu_moments)
-
-    # Start the fishing bot loop
-    while True:
-        try:
-            with mss.mss() as sct:
-                monitor = sct.monitors[1]
+                # Capturing and processing the screen
+                monitor = {"top": roi[1], "left": roi[0], "width": roi[2], "height": roi[3]}
                 screen = np.array(sct.grab(monitor))
+                roi_image = cv2.cvtColor(screen, cv2.COLOR_BGRA2BGR)  # If the image is BGRA, convert it to BGR
+                
+                # Detect the shape in the region of interest
+                shape = shape_detector.detect_shape(roi_image)
+                print("Detected shape:", shape)
 
-            # Crop the region of interest
-            roi_image = screen[roi[1]:roi[1]+roi[3], roi[0]:roi[0]+roi[2]]
+                # Press the corresponding key if a shape is detected
+                if shape:
+                    key = shapes.get(shape)
+                    print("Shape detected: {shape}")
+                    if key:
+                        pyautogui.press(key)
+                        print("Key pressed:", key)
 
-            # Detect the shape in the region of interest
-            shape = shape_detector.detect_shape(roi_image)
+                # Show the region of interest image
+                cv2.imshow('ROI', roi_image)
+                cv2.waitKey(1)
+                print("ROI Image:", roi_image)  # Add this line
 
-            # Press the corresponding key if a shape is detected
-            if shape:
-                print(f"Shape detected: {shape}")
-                key = shapes.get(shape)
-                if key:
-                    pyautogui.press(key)
+                # Calculate the dynamic delay
+                elapsed_time = time.time() - start_time
+                sleep_time = max(frame_time - elapsed_time, 0)
+                time.sleep(sleep_time)
 
-        except Exception as e:
-            logger.error(e)
-
-            # Show the region of interest image
-        cv2.imshow('ROI', roi_image)
-        cv2.waitKey(1)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        cv2.destroyAllWindows()
 
 if __name__ == '__main__':
     main()
