@@ -16,16 +16,15 @@ class ShapeDetector:
 
     def detect_shape(self, image):
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        _, thresh = cv2.threshold(gray, 100, 255, cv2.THRESH_BINARY)
-        thresh = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel=(3,3))  # Opening Morphology Operation
-        
-        contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        edges = cv2.Canny(gray, 50, 150)
         
         for shape, template in self.templates.items():
-            res = cv2.matchTemplate(thresh, template, cv2.TM_CCOEFF_NORMED)
-            min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
-            if max_val > 0.8:  # Threshold, adjust accordingly
-                return shape
+            for scale in np.linspace(0.5, 1.5, 10):
+                resized_template = cv2.resize(template, None, fx=scale, fy=scale)
+                res = cv2.matchTemplate(edges, resized_template, cv2.TM_CCOEFF_NORMED)
+                min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
+                if max_val > 0.8:  # Threshold, adjust accordingly
+                    return shape
 
         return None
 
@@ -43,19 +42,29 @@ def load_templates(image_urls):
 
     return templates
 
+def load_config(config_file='config.ini'):
+    config = configparser.ConfigParser()
+    config.read(config_file)
+    return config
+
 def main():
-    # Load reference images and calculate Hu Moments
+    config = load_config()
+    frame_rate = config.getint('DEFAULT', 'frame_rate')
+    roi = (
+        config.getint('DEFAULT', 'roi_left'),
+        config.getint('DEFAULT', 'roi_top'),
+        config.getint('DEFAULT', 'roi_width'),
+        config.getint('DEFAULT', 'roi_height')
+    )
     templates = load_templates({
-        'circle': "https://raw.githubusercontent.com/zacharymeyerdev/holocurefishingbot/main/images/circle.png",
-        'up_arrow': "https://raw.githubusercontent.com/zacharymeyerdev/holocurefishingbot/main/images/uparrow.png",
-        'down_arrow': "https://raw.githubusercontent.com/zacharymeyerdev/holocurefishingbot/main/images/downarrow.png",
-        'left_arrow': "https://raw.githubusercontent.com/zacharymeyerdev/holocurefishingbot/main/images/leftarrow.png",
-        'right_arrow': "https://raw.githubusercontent.com/zacharymeyerdev/holocurefishingbot/main/images/rightarrow.png"
+        'circle': config['Templates']['circle'],
+        'up_arrow': config['Templates']['up_arrow'],
+        'down_arrow': config['Templates']['down_arrow'],
+        'left_arrow': config['Templates']['left_arrow'],
+        'right_arrow': config['Templates']['right_arrow']
     })
     print("Templates loaded:", templates)
     
-    # Define the region of interest (x, y, width, height)
-    roi = (1120, 703, 130, 120)
     shapes = {
         'up_arrow': 'w',
         'down_arrow': 's',
@@ -64,9 +73,7 @@ def main():
         'circle': 'space',
     }
 
-    frame_rate = 60  # e.g., 30 frames per second
     frame_time = 1.0 / frame_rate  # time for one frame in seconds
-    # Calculate the dynamic delay
 
     shape_detector = ShapeDetector(templates)
 
@@ -82,27 +89,25 @@ def main():
                 
                 # Detect the shape in the region of interest
                 shape = shape_detector.detect_shape(roi_image)
-                print("Detected shape:", shape)
+                logger.debug(f"Detected shape: {shape}")
 
                 # Press the corresponding key if a shape is detected
                 if shape:
                     key = shapes.get(shape)
-                    print("Shape detected:", shape)
                     if key:
                         pyautogui.press(key)
-                        print("Key pressed:", key)
+                        logger.debug(f"Key pressed: {key}")
                 
-                end_time = time.time()  # End the timer
+                end_time = time.time()
                 detection_time = end_time - start_time
     
                 sleep_time = frame_time - detection_time
                 if sleep_time > 0:
-                    time.sleep(sleep_time)  # Add sleep time to adjust for processing time
+                    time.sleep(sleep_time)
 
-                # Show the region of interest image
                 cv2.imshow('ROI', roi_image)
-                cv2.waitKey(1)
-                print("ROI Image:", roi_image)  # Add this line
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
 
     except KeyboardInterrupt:
         pass
