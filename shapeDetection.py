@@ -53,8 +53,6 @@ def main():
         'right_arrow': "https://raw.githubusercontent.com/zacharymeyerdev/holocurefishingbot/main/images/rightarrow.png"
     })
     print("Templates loaded:", templates)
-
-    shape_detector = ShapeDetector(templates)
     
     # Define the region of interest (x, y, width, height)
     roi = (1120, 703, 130, 120)
@@ -68,6 +66,7 @@ def main():
 
     frame_rate = 60  # e.g., 30 frames per second
     frame_time = 1.0 / frame_rate  # time for one frame in seconds
+    # Calculate the dynamic delay
 
     shape_detector = ShapeDetector(templates)
 
@@ -88,19 +87,22 @@ def main():
                 # Press the corresponding key if a shape is detected
                 if shape:
                     key = shapes.get(shape)
+                    print("Shape detected:", shape)
                     if key:
                         pyautogui.press(key)
                         print("Key pressed:", key)
+                
+                end_time = time.time()  # End the timer
+                detection_time = end_time - start_time
+    
+                sleep_time = frame_time - detection_time
+                if sleep_time > 0:
+                    time.sleep(sleep_time)  # Add sleep time to adjust for processing time
 
                 # Show the region of interest image
                 cv2.imshow('ROI', roi_image)
                 cv2.waitKey(1)
                 print("ROI Image:", roi_image)  # Add this line
-
-                # Calculate the dynamic delay
-                elapsed_time = time.time() - start_time
-                sleep_time = max(frame_time - elapsed_time, 0)
-                time.sleep(sleep_time)
 
     except KeyboardInterrupt:
         pass
