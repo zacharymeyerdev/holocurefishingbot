@@ -14,13 +14,19 @@ class ShapeDetector:
     def __init__(self, templates):
         self.templates = templates
 
-    def detect_shape(self, image):
+    def preprocess_image(self, image):
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        edges = cv2.Canny(gray, 50, 150)
+        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+        edges = cv2.Canny(blurred, 50, 150)
+        return edges
+
+    def detect_shape(self, image):
+        edges = self.preprocess_image(image)
         
         for shape, template in self.templates.items():
+            template_edges = self.preprocess_image(template)
             for scale in np.linspace(0.5, 1.5, 10):
-                resized_template = cv2.resize(template, None, fx=scale, fy=scale)
+                resized_template = cv2.resize(template_edges, None, fx=scale, fy=scale)
                 res = cv2.matchTemplate(edges, resized_template, cv2.TM_CCOEFF_NORMED)
                 min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
                 if max_val > 0.8:  # Threshold, adjust accordingly
@@ -34,7 +40,7 @@ def load_templates(image_urls):
         try:
             resp = urllib.request.urlopen(url)
             image = np.asarray(bytearray(resp.read()), dtype="uint8")
-            image = cv2.imdecode(image, cv2.IMREAD_GRAYSCALE)
+            image = cv2.imdecode(image, cv2.IMREAD_COLOR)
             templates[shape] = image
 
         except Exception as e:
