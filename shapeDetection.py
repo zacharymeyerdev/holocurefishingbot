@@ -22,17 +22,26 @@ class ShapeDetector:
 
     def detect_shape(self, image):
         edges = self.preprocess_image(image)
-        
+        image_height, image_width = edges.shape
+
         for shape, template in self.templates.items():
             template_edges = self.preprocess_image(template)
-            for scale in np.linspace(0.5, 1.5, 10):
-                resized_template = cv2.resize(template_edges, None, fx=scale, fy=scale)
+            template_height, template_width = template_edges.shape
+
+            for scale in np.linspace(0.8, 1.2, 10):  # Adjust scaling range if necessary
+                resized_template_width = int(template_width * scale)
+                resized_template_height = int(template_height * scale)
+
+                if resized_template_width > image_width or resized_template_height > image_height:
+                    continue
+
+                resized_template = cv2.resize(template_edges, (resized_template_width, resized_template_height))
                 res = cv2.matchTemplate(edges, resized_template, cv2.TM_CCOEFF_NORMED)
                 min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
-                if max_val > 0.8:  # Threshold, adjust accordingly
-                    return shape
+                if max_val > 0.55:  # Lower threshold for better detection
+                    return shape, max_loc, resized_template.shape[:2]
 
-        return None
+        return None, None, None
 
 def load_templates(image_urls):
     templates = {}
@@ -56,18 +65,29 @@ def load_config(config_file='config.ini'):
 def main():
     config = load_config()
     frame_rate = config.getint('DEFAULT', 'frame_rate')
-    roi = (
-        config.getint('DEFAULT', 'roi_left'),
-        config.getint('DEFAULT', 'roi_top'),
-        config.getint('DEFAULT', 'roi_width'),
-        config.getint('DEFAULT', 'roi_height')
-    )
+
+    rois = {
+        'Buttons': {
+            'top': config.getint('Buttons', 'roi_top'),
+            'left': config.getint('Buttons', 'roi_left'),
+            'width': config.getint('Buttons', 'roi_width'),
+            'height': config.getint('Buttons', 'roi_height')
+        },
+        'Okay': {
+            'top': config.getint('Okay', 'roi_top'),
+            'left': config.getint('Okay', 'roi_left'),
+            'width': config.getint('Okay', 'roi_width'),
+            'height': config.getint('Okay', 'roi_height')
+        }
+    }
+    
     templates = load_templates({
         'circle': config['Templates']['circle'],
         'up_arrow': config['Templates']['up_arrow'],
         'down_arrow': config['Templates']['down_arrow'],
         'left_arrow': config['Templates']['left_arrow'],
-        'right_arrow': config['Templates']['right_arrow']
+        'right_arrow': config['Templates']['right_arrow'],
+        'okay': config['Templates']['okay']
     })
     print("Templates loaded:", templates)
     
@@ -87,23 +107,32 @@ def main():
         with mss.mss() as sct:
             while True:
                 start_time = time.time()
-
-                # Capturing and processing the screen
-                monitor = {"top": roi[1], "left": roi[0], "width": roi[2], "height": roi[3]}
-                screen = np.array(sct.grab(monitor))
-                roi_image = cv2.cvtColor(screen, cv2.COLOR_BGRA2BGR)  # If the image is BGRA, convert it to BGR
                 
-                # Detect the shape in the region of interest
-                shape = shape_detector.detect_shape(roi_image)
-                logger.debug(f"Detected shape: {shape}")
+                for roi_name, roi in rois.items():
+                    monitor = {"top": roi['top'], "left": roi['left'], "width": roi['width'], "height": roi['height']}
+                    screen = np.array(sct.grab(monitor))
+                    roi_image = cv2.cvtColor(screen, cv2.COLOR_BGRA2BGR)  # If the image is BGRA, convert it to BGR
+                    
+                    # Detect the shape in the region of interest
+                    shape, max_loc, template_shape = shape_detector.detect_shape(roi_image)
+                    logger.debug(f"Detected shape: {shape}")
 
-                # Press the corresponding key if a shape is detected
-                if shape:
-                    key = shapes.get(shape)
-                    if key:
-                        pyautogui.press(key)
-                        logger.debug(f"Key pressed: {key}")
-                
+                    if shape:
+                        if shape == 'okay':
+                            # Click the center of the detected "okay" sign
+                            click_x = roi['left'] + max_loc[0] + template_shape[1] // 2
+                            click_y = roi['top'] + max_loc[1] + template_shape[0] // 2
+                            pyautogui.click(click_x, click_y)
+                            logger.debug(f"Clicked on okay sign at: ({click_x}, {click_y})")
+                        else:
+                            # Press the corresponding key if a shape is detected
+                            key = shapes.get(shape)
+                            if key:
+                                pyautogui.press(key)
+                                logger.debug(f"Key pressed: {key}")
+                    
+                    cv2.imshow(f'ROI - {roi_name}', roi_image)
+
                 end_time = time.time()
                 detection_time = end_time - start_time
     
@@ -111,7 +140,6 @@ def main():
                 if sleep_time > 0:
                     time.sleep(sleep_time)
 
-                cv2.imshow('ROI', roi_image)
                 if cv2.waitKey(1) & 0xFF == ord('q'):
                     break
 
